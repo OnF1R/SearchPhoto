@@ -1,0 +1,177 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>@ViewData["Title"] - SearchPhoto</title>
+	<link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+	<link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+	<link rel="stylesheet" href="~/SearchPhoto.styles.css" asp-append-version="true" />
+</head>
+<body>
+	<header>
+		<nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+			<div class="container-fluid">
+				<a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">SearchPhoto</a>
+				<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+						aria-expanded="false" aria-label="Toggle navigation">
+					<span class="navbar-toggler-icon"></span>
+				</button>
+				<div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+					<ul class="navbar-nav flex-grow-1">
+						<li class="nav-item">
+							<a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+						</li>
+					</ul>
+					<form class="d-flex">
+						<input class="form-control mr-2" type="search" id="searchLabel" placeholder="Search" aria-label="Search">
+						<button class="btn btn-outline-success ms-1" type="submit" onclick="SearchPhotos(); return false">Search</button>
+					</form>
+				</div>
+			</div>
+		</nav>
+	</header>
+	<div class="container">
+		<main role="main" id="main" class="pb-3">
+			@RenderBody()
+		</main>
+	</div>
+
+	<footer class="border-top footer text-muted">
+		<div class="container">
+			&copy; 2023 - SearchPhoto - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+		</div>
+	</footer>
+	<script src="~/lib/jquery/dist/jquery.min.js"></script>
+	<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+	<script src="~/js/site.js" asp-append-version="true"></script>
+	<script src="~/js/masonry.js"></script>
+	<script src="~/js/imagesloaded.js"></script>
+	@await RenderSectionAsync("Scripts", required: false)
+	<script>
+
+		var currentPage = 0;
+		var maxPage = 0;
+
+		function UpdatePhotosAfterSearch() {
+			document.getElementById('images-container').remove();
+			const main = document.getElementById('main');
+			const grid = document.createElement('div');
+			grid.classList.add('row');
+			grid.classList.add('grid');
+			grid.id = "images-container";
+
+			main.appendChild(grid);
+		}
+
+		async function SearchPhotos(page = 1, updateGrid = true) {
+			const search = document.getElementById('searchLabel').value;
+			const response = await fetch("Home/SearchPhotos?query=" + search + "&page=" + page);
+			const jsonData = await response.json();
+
+			if (updateGrid) {
+				UpdatePhotosAfterSearch();
+			}
+
+			const container = document.getElementById('images-container');
+
+			currentPage = page;
+			maxPage = jsonData['totalPages'];
+
+			for (let i = 0; i < jsonData['results'].length; i++) {
+				let obj = jsonData['results'][i]['urls'];
+
+				CreateImage(obj.small);
+			}
+
+			imagesLoaded(document.getElementById('images-container'), masonryActive);
+		}
+
+		function CreateImage(source) {
+			const grid = document.getElementById('images-container');
+			const container = document.createElement('div');
+			const img = document.createElement('img');
+
+			img.src = source;
+			img.classList.add('img-fluid');
+			img.classList.add('shadow-1-strong');
+			img.classList.add('rounded');
+			img.classList.add('mb-4');
+			container.classList.add('grid-item');
+			container.classList.add('col');
+			container.appendChild(img);
+			grid.appendChild(container);
+		}
+
+		async function GetRandomPhotos() {
+			const img = document.getElementById('img');
+			const response = await fetch("Home/RandomPhotos");
+			const jsonData = await response.json();
+
+			for (let i = 0; i < jsonData.length; i++) {
+				let obj = jsonData[i]['urls'];
+
+				CreateImage(obj.small);
+			}
+
+			imagesLoaded(document.getElementById('images-container'), masonryActive);
+		}
+
+		function masonryActive(instance) {
+			var elem = document.querySelector('.grid');
+
+			var msnry = new Masonry(elem, {
+				// options
+				itemSelector: '.grid-item',
+				columnWidth: 440
+			});
+		}
+
+		function throttle(callee, timeout) {
+			let timer = null
+
+			return function perform(...args) {
+				if (timer) return
+
+				timer = setTimeout(() => {
+					callee(...args)
+
+					clearTimeout(timer)
+					timer = null
+				}, timeout)
+			}
+		}
+
+		function checkPosition() {
+			const height = document.body.offsetHeight
+			const screenHeight = window.innerHeight
+
+			const scrolled = window.scrollY
+
+			const threshold = height - screenHeight / 3
+
+			const position = scrolled + screenHeight
+
+			if (position >= threshold) {
+				if (maxPage >= currentPage && maxPage != 0 && currentPage != 0) {
+					currentPage++;
+					SearchPhotos(currentPage, false);
+				}
+				else if (maxPage == 0 && currentPage == 0) {
+					GetRandomPhotos();
+				}
+			}
+		}
+
+		GetRandomPhotos();
+
+		imagesLoaded(document.getElementById('images-container'), masonryActive);
+
+		; (() => {
+			window.addEventListener('scroll', throttle(checkPosition, 250))
+			window.addEventListener('resize', throttle(checkPosition, 250))
+		})()
+
+	</script>
+</body>
+</html>
